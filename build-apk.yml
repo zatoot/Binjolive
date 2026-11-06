@@ -1,0 +1,53 @@
+name: Build Waleed Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract project ZIP automatically if uploaded without unzipping
+        run: |
+          if [ -f Waleed_Flutter_App_Repaired.zip ]; then
+            echo "Found Waleed_Flutter_App_Repaired.zip, extracting..."
+            unzip -q -o Waleed_Flutter_App_Repaired.zip
+          elif [ -f Waleed_Repair_Bundle.zip ]; then
+            echo "Found Waleed_Repair_Bundle.zip, extracting..."
+            unzip -q -o Waleed_Repair_Bundle.zip
+            if [ -d Waleed_Gemini_Repair_Bundle/flutter_app ] && [ ! -d flutter_app ]; then
+              mv Waleed_Gemini_Repair_Bundle/flutter_app ./flutter_app
+            fi
+          fi
+          test -f flutter_app/pubspec.yaml
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+
+      - name: Build Release APK (ARM64)
+        working-directory: flutter_app
+        run: flutter build apk --release --target-platform android-arm64
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: waleed-app-release-apk
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
